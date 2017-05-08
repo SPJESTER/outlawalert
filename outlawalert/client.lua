@@ -3,10 +3,11 @@ local timer = 1 --in minutes - Set the time during the player is outlaw
 local showOutlaw = true --Set if show outlaw act on map
 local gunshotAlert = true --Set if show alert when player use gun
 local carJackingAlert = true --Set if show when player do carjacking
+local fightAlert = true --Set if show when player fight in melee
 local meleeAlert = true --Set if show when player fight in melee
-local blipGunTime = 2 --in second
-local blipMeleeTime = 2 --in second
-local blipJackingTime = 10 -- in second
+local blipGunTime = 15 --in second
+local blipMeleeTime = 15 --in second
+local blipJackingTime = 15 -- in second
 --End config
 
 local origin = false --Don't touche it
@@ -18,17 +19,20 @@ local PedModels = {
         's_m_y_hwaycop_01',
         's_f_y_cop_01',
         's_m_y_sheriff_01',
+        's_f_y_sheriff_01',
         's_m_y_ranger_01',
         's_m_m_armoured_01',
-        's_m_m_armoured_01',
-        's_f_y_sheriff_01',
+        's_m_m_armoured_02',
         's_f_y_ranger_01',
-        --'s_m_m_ciasec_01',
-        --'s_m_m_armoured_01',
-        --'s_m_m_armoured_02',
-        --'u_m_m_fibarchitect',
-        --'s_m_y_swat_01',
-    }
+        's_m_m_ciasec_01',
+        'u_m_m_fibarchitect',
+        's_m_y_swat_01',
+		's_m_y_blackops_01',
+		's_m_y_blackops_02',
+		's_m_y_blackops_03',
+		's_m_y_hwaycop_01',
+		'u_m_m_doa_01'
+		}
 GetPlayerName()
 RegisterNetEvent('outlawNotify')
 AddEventHandler('outlawNotify', function(alert)
@@ -63,7 +67,7 @@ AddEventHandler('thiefPlace', function(tx, ty, tz)
             if carJackingAlert then
                 local transT = 250
                 local thiefBlip = AddBlipForCoord(tx, ty, tz)
-                SetBlipSprite(thiefBlip,  10)
+                SetBlipSprite(thiefBlip,  1)
                 SetBlipColour(thiefBlip,  1)
                 SetBlipAlpha(thiefBlip,  transT)
                 SetBlipAsShortRange(thiefBlip,  1)
@@ -80,6 +84,30 @@ AddEventHandler('thiefPlace', function(tx, ty, tz)
         end
     end
 end)
+
+RegisterNetEvent('fightinprogress')
+AddEventHandler('fightinprogress', function(tx, ty, tz)
+    for i = 0, #PedModels do
+        if not origin and IsPedModel(GetPlayerPed(-1),GetHashKey(PedModels[i])) then
+            if fightAlert then
+				local transT = 255
+				local fightBlip = AddBlipForCoord(tx, ty, tz)
+				SetBlipSprite(fightBlip,  1)
+				SetBlipColour(fightBlip,  1)
+				SetBlipAlpha(fightBlip,  transT)
+				SetBlipAsShortRange(fightBlip,  1)
+				while transT ~= 0 do
+					transT = transT - 1
+					SetBlipAlpha(fightBlip,  transT)
+					if transT == 0 then
+                        SetBlipSprite(fightBlip,  2)
+						return end
+				end
+			
+            end
+        end
+    end
+end)		
 
 RegisterNetEvent('gunshotPlace')
 AddEventHandler('gunshotPlace', function(gx, gy, gz)
@@ -257,6 +285,31 @@ Citizen.CreateThread( function()
             end
             Wait(3000)
             origin = false
+        end
+    end
+end)
+
+Citizen.CreateThread( function()
+    while true do
+        Wait(0)      
+        local plyPos = GetEntityCoords(GetPlayerPed(-1),  true)
+        local s1, s2 = Citizen.InvokeNative( 0x2EB41072B4C1E4C0, plyPos.x, plyPos.y, plyPos.z, Citizen.PointerValueInt(), Citizen.PointerValueInt() )
+        local street1 = GetStreetNameFromHashKey(s1)
+        local street2 = GetStreetNameFromHashKey(s2)
+        if IsPedInMeleeCombat(GetPlayerPed(-1)) then
+            local male = IsPedMale(GetPlayerPed(-1))
+            if male then
+                sex = "men"
+            elseif not male then
+                sex = "women"
+            end
+            TriggerServerEvent('fightinprogresspos', plyPos.x, plyPos.y, plyPos.z)
+            if s2 == 0 then
+                TriggerServerEvent('fightinprogresss1', street1, sex)
+            elseif s2 ~= 0 then
+                TriggerServerEvent("fightinprogress", street1, street2, sex)
+            end
+            Wait(3000)
         end
     end
 end)
